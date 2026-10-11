@@ -1,29 +1,104 @@
-# Pluto TV Brasil → M3U para SS IPTV
+# Lista M3U VOD do Pluto TV Brasil (atualização automática)
 
-Gerador automático de uma playlist M3U usando a API pública da Pluto TV.
+Este projeto gera uma lista **M3U** com o **conteúdo sob demanda (VOD)** do
+[Pluto TV Brasil](https://pluto.tv/br/) — Filmes e Séries — com o **nome de cada
+conteúdo**, pronta para usar no **SS IPTV**, **VLC** e players compatíveis.
 
-## Como usar
+O GitHub Actions regenera a lista **a cada 6 horas**, automaticamente.
 
-1. Crie um repositório público no GitHub.
-2. Envie:
-   - `gerar_lista.py`
-   - `pluto-brasil.m3u`
-   - `.github/workflows/atualizar.yml`
-   - `README.md`
-3. Execute o workflow **Atualizar Pluto TV Brasil** uma vez em:
-   **Actions → Atualizar Pluto TV Brasil → Run workflow**.
-4. Depois, no SS IPTV, use:
+## O que a lista contém
 
-```text
-https://raw.githubusercontent.com/SEU_USUARIO/SEU_REPOSITORIO/main/pluto-brasil.m3u
+- Cada item traz o nome do conteúdo (`tvg-name` e título) e a capa (`tvg-logo`).
+- **Ano** entre parênteses nos filmes (quando detectável no slug).
+- **Episódios** com formato `Série S01E05 - Título`.
+- Agrupamento por `group-title`:
+  - `Filmes • <Categoria Pluto>` — ex.: `Filmes • Cine Ação`, `Filmes • Cine Drama`…
+  - `Séries • <Categoria> • <Nome da série>` — cada série agrupada.
+- Links de vídeo HLS diretos (stitcher Pluto + JWT), que o próprio player abre.
+
+## Retomar de onde parou (barra de progresso no SS IPTV)
+
+A lista:
+
+1. Preenche o `#EXTINF` com a **duração real** de cada título em segundos
+   (ex.: `#EXTINF:6900 ...`), em vez de `-1`.
+2. Marca cada item com **`content-type="video"`** (parâmetro do SS IPTV para
+   "isto é um VÍDEO sob demanda, não um canal ao vivo").
+
+Com os dois ajustes, o SS IPTV trata o item como **VOD**: aparece a barra de
+progresso, dá para avançar/retroceder e ele guarda a posição para
+**continuar de onde parou** (igual no VLC).
+
+## Região Brasil
+
+O script força o catálogo brasileiro via:
+
+- Header `X-Forwarded-For` com IP brasileiro
+- `Accept-Language: pt-BR`
+- Referer `https://pluto.tv/br/`
+
+Isso faz a API devolver categorias e títulos em português (ex.: "Cine Ação",
+"Novelas", etc.). Funciona tanto em máquina local quanto no GitHub Actions.
+
+> **Nota:** o JWT do Pluto expira em algumas horas. Por isso a lista é
+> regenerada automaticamente a cada 6 horas — os links ficam sempre válidos.
+
+## Opções da linha de comando
+
+```bash
+python gerar_pluto_vod.py [opções]
+
+  --workers N        Threads paralelas (padrão: 12)
+  --movies-only      Apenas filmes
+  --series-only      Apenas séries
+  -o, --output PATH  Arquivo M3U de saída
+  -v, --verbose      Log detalhado
 ```
 
-## Atualização automática
+## Como publicar no GitHub
 
-O GitHub Actions executa o gerador a cada 6 horas e substitui a playlist.
+1. Crie um repositório novo (pode ser público) no GitHub.
+2. Envie todos os arquivos desta pasta para o repositório, mantendo a estrutura:
+   ```
+   gerar_pluto_vod.py
+   playlists/pluto_vod.m3u
+   .github/workflows/update.yml
+   README.md
+   ```
+3. No GitHub, abra **Settings > Actions > General > Workflow permissions** e
+   marque **Read and write permissions**.
+4. Pronto. O workflow roda sozinho a cada 6 horas. Para rodar na hora:
+   **Actions > Atualizar lista VOD Pluto TV > Run workflow**.
 
-## Observação importante
+## URL para usar no SS IPTV
 
-As URLs HLS da Pluto TV são autenticadas/tokenizadas e podem expirar. Por isso o arquivo M3U precisa ser regenerado periodicamente; não é recomendável manter URLs de sessão copiadas manualmente.
+Depois de enviar ao GitHub, use o link **raw** da lista (troque `USUARIO` e
+`REPOSITORIO`):
 
-O projeto utiliza somente os canais disponibilizados pela Pluto TV para a região configurada no gerador.
+```
+https://raw.githubusercontent.com/USUARIO/REPOSITORIO/main/playlists/pluto_vod.m3u
+```
+
+No **SS IPTV**: Configurações > Listas de reprodução > Adicionar > cole a URL
+externa acima > Salvar.
+
+## Rodar manualmente no PC
+
+```bash
+python gerar_pluto_vod.py
+```
+
+Gera/atualiza `playlists/pluto_vod.m3u`. Faz backup automático da lista
+anterior (`.m3u.bak`).
+
+Requisitos: apenas **Python 3.9+** (usa somente bibliotecas padrão — sem pip install).
+
+## Observações importantes
+
+- Os streams do Pluto TV incluem **anúncios** (é o modelo de negócio gratuito).
+- O JWT embutido nas URLs expira; por isso a atualização automática a cada 6h
+  é essencial.
+- Conteúdo disponível depende da região (Brasil). Em outros países o catálogo
+  muda.
+- Uso pessoal / educacional. Todo o conteúdo é propriedade do Pluto TV /
+  Paramount.

@@ -1,0 +1,9 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.env
+.flavor_cache.json
+*.m3u.bak
+.DS_Store
